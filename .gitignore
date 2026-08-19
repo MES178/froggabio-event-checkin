@@ -1,0 +1,12 @@
+.DS_Store
+.env
+.env.*
+*.local
+node_modules/
+dist/
+
+# Never commit attendee data or local test exports.
+test-data/
+*.csv
+*.jsonl
+

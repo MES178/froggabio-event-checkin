@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#123b36" />
+    <meta name="description" content="FroggaBio Life Science event registration check-in" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="stylesheet" href="./styles.css" />
+    <title>Life Science Check-in</title>
+    <script src="./config.js"></script>
+    <script src="./vendor/jsQR.js" defer></script>
+    <script src="./app.js" defer></script>
+  </head>
+  <body>
+    <div class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">FroggaBio</p>
+          <h1>Life Science Check-in</h1>
+          <p class="subhead">October 6, 2026 · QR registration desk</p>
+        </div>
+        <div class="connection-chip" id="connectionChip" data-state="offline">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span id="connectionLabel">Offline</span>
+        </div>
+      </header>
+
+      <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+
+      <section id="loginView" class="card auth-card">
+        <div class="card-heading">
+          <div>
+            <p class="eyebrow">Staff access</p>
+            <h2>Open the check-in desk</h2>
+          </div>
+          <span class="lock-mark" aria-hidden="true">⌁</span>
+        </div>
+        <p class="muted">Enter the staff PIN supplied for this event. The PIN is sent only over HTTPS to the n8n check-in service.</p>
+        <form id="loginForm" class="stack-form">
+          <label for="staffPin">Staff PIN</label>
+          <input id="staffPin" name="staffPin" type="password" inputmode="numeric" autocomplete="off" minlength="4" required />
+          <button class="button button-primary" type="submit">Open desk</button>
+        </form>
+      </section>
+
+      <main id="appView" hidden>
+        <section class="summary-grid" aria-label="Desk status">
+          <div class="stat-card">
+            <span class="stat-label">Roster loaded</span>
+            <strong id="rosterCount">0</strong>
+            <span class="stat-caption" id="rosterUpdated">Not loaded yet</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Waiting to sync</span>
+            <strong id="queueCount">0</strong>
+            <span class="stat-caption" id="queueCaption">All clear</span>
+          </div>
+          <div class="stat-card stat-card-action">
+            <span class="stat-label">This device</span>
+            <strong id="deviceLabel">—</strong>
+            <button class="button button-quiet" id="refreshRoster" type="button">Refresh roster</button>
+          </div>
+        </section>
+
+        <section class="workspace-grid">
+          <div class="card scanner-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Door scanner</p>
+                <h2>Scan a guest QR code</h2>
+              </div>
+              <span class="live-pill" id="scannerState">Ready</span>
+            </div>
+            <div class="scanner-frame" id="scannerFrame">
+              <video id="camera" playsinline muted aria-label="QR scanner camera"></video>
+              <canvas id="scanCanvas" hidden></canvas>
+              <div class="scanner-placeholder" id="scannerPlaceholder">
+                <span class="scan-glyph" aria-hidden="true">▦</span>
+                <p>Start the camera, then hold the QR code inside the frame.</p>
+              </div>
+              <div class="scan-brackets" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+            </div>
+            <p class="scanner-message" id="scannerMessage">The roster can be used offline after it is loaded.</p>
+            <div class="button-row">
+              <button class="button button-primary" id="startScanner" type="button">Start camera</button>
+              <button class="button button-secondary" id="stopScanner" type="button" disabled>Stop</button>
+            </div>
+          </div>
+
+          <div class="card search-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">Fallback lookup</p>
+                <h2>Find a guest manually</h2>
+              </div>
+              <span class="search-mark" aria-hidden="true">⌕</span>
+            </div>
+            <form id="searchForm" class="search-form">
+              <label class="sr-only" for="searchInput">Name, email, company or short code</label>
+              <input id="searchInput" type="search" autocomplete="off" placeholder="Name, email, company or code" />
+              <button class="button button-primary" type="submit">Search</button>
+            </form>
+            <div class="search-results" id="searchResults" aria-live="polite">
+              <p class="empty-state">Search the loaded roster when a guest cannot show the QR code.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="card operations-card">
+          <div class="card-heading">
+            <div>
+              <p class="eyebrow">Operations</p>
+              <h2>Desk controls</h2>
+            </div>
+            <button class="button button-quiet" id="logoutButton" type="button">Lock desk</button>
+          </div>
+          <div class="operations-grid">
+            <div>
+              <h3>Offline mode</h3>
+              <p class="muted">Check-ins are queued on this device when the connection drops, then sent automatically when it returns.</p>
+            </div>
+            <div>
+              <h3>Duplicate protection</h3>
+              <p class="muted">The first successful check-in timestamp is preserved. Later scans show the existing status instead of creating a second arrival.</p>
+            </div>
+            <div>
+              <h3>Event scope</h3>
+              <p class="muted">This desk is configured for Life Science on October 6, 2026 only.</p>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        <span>Private event operations tool</span>
+        <span id="appVersion">v0.1</span>
+      </footer>
+    </div>
+
+    <dialog id="resultDialog" class="result-dialog">
+      <div class="dialog-content">
+        <div class="dialog-icon" id="dialogIcon" aria-hidden="true">✓</div>
+        <p class="eyebrow" id="dialogEyebrow">Check-in result</p>
+        <h2 id="dialogTitle">Guest</h2>
+        <p id="dialogMessage"></p>
+        <div class="dialog-meta" id="dialogMeta"></div>
+        <div class="button-row">
+          <button class="button button-primary" id="dialogClose" type="button">Done</button>
+          <button class="button button-secondary" id="dialogUndo" type="button" hidden>Undo</button>
+        </div>
+      </div>
+    </dialog>
+  </body>
+</html>
